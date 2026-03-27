@@ -101,6 +101,9 @@ def api_history():
     if history.empty:
         return jsonify({"error": f"No data for {asset}"}), 404
 
+    history = history.dropna(subset=["Close"])
+    if history.empty:
+        return jsonify({"error": f"No valid data for {asset}"}), 404
     history = history.fillna(0)
     data = {
         "asset": asset,
