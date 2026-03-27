@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song Jongun's Market Watch</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background: #0f172a; color: #e2e8f0; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; }
+        .card-hover:hover { border-color: #60a5fa; box-shadow: 0 0 20px rgba(96,165,250,0.1); cursor: pointer; }
+        .card-active { border-color: #3b82f6 !important; box-shadow: 0 0 20px rgba(59,130,246,0.2); }
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { color: #3b82f6; border-bottom: 2px solid #3b82f6; }
+        .tab-btn:hover:not(.active) { color: #94a3b8; }
+        .period-btn { transition: all 0.15s; }
+        .period-btn.active { background: #3b82f6; color: white; }
+        .period-btn:hover:not(.active) { background: #334155; }
+        .spinner { border: 3px solid #334155; border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; display: inline-block; }
+        .spinner-lg { width: 48px; height: 48px; border-width: 4px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.3s ease-out; }
+        .toast { position: fixed; top: 1.5rem; right: 1.5rem; z-index: 1000; padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; animation: fadeIn 0.3s ease-out; }
+        .toast-error { background: #7f1d1d; border: 1px solid #991b1b; color: #fca5a5; }
+        .toast-success { background: #14532d; border: 1px solid #166534; color: #86efac; }
+        .progress-bar-bg { background: #334155; border-radius: 9999px; height: 8px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; border-radius: 9999px; transition: width 0.5s ease; }
+        .checkbox-custom { accent-color: #3b82f6; }
+        .markdown-body h1 { font-size: 1.5rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: #f1f5f9; }
+        .markdown-body h2 { font-size: 1.25rem; font-weight: 600; margin: 1.25rem 0 0.5rem; color: #e2e8f0; }
+        .markdown-body h3 { font-size: 1.1rem; font-weight: 600; margin: 1rem 0 0.5rem; color: #cbd5e1; }
+        .markdown-body p { margin: 0.5rem 0; line-height: 1.7; color: #94a3b8; }
+        .markdown-body ul, .markdown-body ol { margin: 0.5rem 0; padding-left: 1.5rem; color: #94a3b8; }
+        .markdown-body li { margin: 0.25rem 0; }
+        .markdown-body strong { color: #e2e8f0; }
+        .markdown-body code { background: #334155; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; }
+        .markdown-body pre { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+        .markdown-body pre code { background: none; padding: 0; }
+        .markdown-body table { width: 100%; border-collapse: collapse; margin: 0.75rem 0; }
+        .markdown-body th { background: #334155; padding: 0.5rem 0.75rem; text-align: left; font-weight: 600; border: 1px solid #475569; }
+        .markdown-body td { padding: 0.5rem 0.75rem; border: 1px solid #334155; }
+        .markdown-body blockquote { border-left: 3px solid #3b82f6; padding-left: 1rem; margin: 0.75rem 0; color: #94a3b8; }
+        .heatmap-canvas { image-rendering: pixelated; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    </style>
+</head>
+<body class="min-h-screen">
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Header -->
+<header class="border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6">
+        <div class="flex items-center justify-between h-16">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <h1 class="text-lg font-bold text-white tracking-tight">Song Jongun's Market Watch</h1>
+                <span class="text-xs text-slate-500 hidden sm:inline">Financial Analysis Dashboard</span>
+            </div>
+            <nav class="flex gap-1">
+                <button class="tab-btn active px-4 py-5 text-sm font-medium text-blue-400 border-b-2 border-blue-500" data-tab="dashboard" onclick="switchTab('dashboard')">
+                    대시보드
+                </button>
+                <button class="tab-btn px-4 py-5 text-sm font-medium text-slate-400 border-b-2 border-transparent" data-tab="simulation" onclick="switchTab('simulation')">
+                    시뮬레이션
+                </button>
+                <button class="tab-btn px-4 py-5 text-sm font-medium text-slate-400 border-b-2 border-transparent" data-tab="correlation" onclick="switchTab('correlation')">
+                    상관관계
+                </button>
+                <button class="tab-btn px-4 py-5 text-sm font-medium text-slate-400 border-b-2 border-transparent" data-tab="report" onclick="switchTab('report')">
+                    AI 보고서
+                </button>
+            </nav>
+        </div>
+    </div>
+</header>
+
+<!-- Main Content -->
+<main class="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+
+    <!-- ====== TAB 1: Dashboard ====== -->
+    <section id="tab-dashboard" class="fade-in">
+        <!-- Price Cards -->
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-semibold text-slate-200">실시간 시세</h2>
+                <button onclick="loadDashboard()" class="text-xs text-slate-400 hover:text-blue-400 flex items-center gap-1.5 transition">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    새로고침
+                </button>
+            </div>
+            <div id="price-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+
+        <!-- Price Chart -->
+        <div class="card p-5 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="chart-title" class="font-semibold text-slate-200">가격 차트</h3>
+                <div class="flex gap-1.5">
+                    <button class="period-btn active text-xs px-3 py-1.5 rounded-md bg-blue-600 text-white" data-period="1mo" onclick="changePeriod('1mo', this)">1개월</button>
+                    <button class="period-btn text-xs px-3 py-1.5 rounded-md bg-slate-700 text-slate-300" data-period="3mo" onclick="changePeriod('3mo', this)">3개월</button>
+                    <button class="period-btn text-xs px-3 py-1.5 rounded-md bg-slate-700 text-slate-300" data-period="6mo" onclick="changePeriod('6mo', this)">6개월</button>
+                    <button class="period-btn text-xs px-3 py-1.5 rounded-md bg-slate-700 text-slate-300" data-period="1y" onclick="changePeriod('1y', this)">1년</button>
+                </div>
+            </div>
+            <div class="relative" style="height: 350px;">
+                <div id="chart-loading" class="absolute inset-0 flex items-center justify-center bg-slate-800/50 rounded-lg hidden">
+                    <div class="spinner"></div>
+                </div>
+                <canvas id="priceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Macro Indicators -->
+        <div class="mb-6">
+            <h3 class="font-semibold text-slate-200 mb-3">거시경제 지표</h3>
+            <div id="macro-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+    </section>
+
+    <!-- ====== TAB 2: Simulation ====== -->
+    <section id="tab-simulation" class="hidden fade-in">
+        <!-- Controls -->
+        <div class="card p-5 mb-6">
+            <div class="flex flex-wrap items-end gap-4">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1.5">자산 선택</label>
+                    <select id="sim-asset" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1.5">예측 기간 (일)</label>
+                    <input id="sim-days" type="number" value="30" min="5" max="365" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 w-24 focus:outline-none focus:border-blue-500">
+                </div>
+                <button onclick="runSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    시뮬레이션 실행
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="sim-loading" class="hidden card p-12 mb-6 text-center">
+            <div class="spinner spinner-lg mx-auto mb-4"></div>
+            <p class="text-slate-400">몬테카를로 시뮬레이션 실행 중...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="sim-results" class="hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                <!-- Histogram -->
+                <div class="card p-5 lg:col-span-2">
+                    <h3 class="font-semibold text-slate-200 mb-3">최종 가격 분포</h3>
+                    <div style="height: 300px;">
+                        <canvas id="histogramChart"></canvas>
+                    </div>
+                </div>
+                <!-- Stats -->
+                <div class="card p-5">
+                    <h3 class="font-semibold text-slate-200 mb-4">통계 요약</h3>
+                    <div id="sim-stats" class="space-y-3">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sample Paths -->
+            <div class="card p-5">
+                <h3 class="font-semibold text-slate-200 mb-3">시뮬레이션 경로 (100개 샘플)</h3>
+                <div style="height: 350px;">
+                    <canvas id="pathsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Placeholder -->
+        <div id="sim-placeholder" class="card p-16 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+            <p class="text-slate-500 text-sm">자산을 선택하고 시뮬레이션을 실행하세요</p>
+            <p class="text-slate-600 text-xs mt-1">몬테카를로 방법을 사용한 가격 예측</p>
+        </div>
+    </section>
+
+    <!-- ====== TAB 3: Correlation ====== -->
+    <section id="tab-correlation" class="hidden fade-in">
+        <!-- Controls -->
+        <div class="card p-5 mb-6">
+            <div class="flex flex-wrap items-end gap-6">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">자산 선택 (2개 이상)</label>
+                    <div id="corr-assets" class="flex flex-wrap gap-x-4 gap-y-2">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1.5">기간</label>
+                    <select id="corr-period" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="1mo">1개월</option>
+                        <option value="3mo" selected>3개월</option>
+                        <option value="6mo">6개월</option>
+                        <option value="1y">1년</option>
+                    </select>
+                </div>
+                <button onclick="runCorrelation()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    분석
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="corr-loading" class="hidden card p-12 mb-6 text-center">
+            <div class="spinner spinner-lg mx-auto mb-4"></div>
+            <p class="text-slate-400">상관관계 분석 중...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="corr-results" class="hidden">
+            <div class="card p-5 mb-6">
+                <h3 class="font-semibold text-slate-200 mb-4">상관관계 히트맵</h3>
+                <div class="flex justify-center overflow-x-auto">
+                    <canvas id="heatmapCanvas" class="heatmap-canvas"></canvas>
+                </div>
+            </div>
+            <div id="corr-pairs" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Filled dynamically -->
+            </div>
+        </div>
+
+        <!-- Placeholder -->
+        <div id="corr-placeholder" class="card p-16 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z"/></svg>
+            <p class="text-slate-500 text-sm">자산을 선택하고 상관관계를 분석하세요</p>
+            <p class="text-slate-600 text-xs mt-1">자산 간 가격 상관계수 매트릭스</p>
+        </div>
+    </section>
+
+    <!-- ====== TAB 4: Report ====== -->
+    <section id="tab-report" class="hidden fade-in">
+        <!-- Controls -->
+        <div class="card p-5 mb-6">
+            <div class="flex flex-wrap items-end gap-6">
+                <div>
+                    <label class="block text-xs text-slate-400 mb-2">분석 자산</label>
+                    <div id="report-assets" class="flex flex-wrap gap-x-4 gap-y-2">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1.5">기간</label>
+                    <select id="report-period" class="bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-blue-500">
+                        <option value="1mo">1개월</option>
+                        <option value="3mo" selected>3개월</option>
+                        <option value="6mo">6개월</option>
+                        <option value="1y">1년</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-slate-400 mb-1.5">언어</label>
+                    <div class="flex bg-slate-700 rounded-lg overflow-hidden border border-slate-600">
+                        <button id="lang-ko" class="px-3 py-2 text-sm bg-blue-600 text-white" onclick="setLang('ko')">한국어</button>
+                        <button id="lang-en" class="px-3 py-2 text-sm text-slate-300 hover:bg-slate-600" onclick="setLang('en')">English</button>
+                    </div>
+                </div>
+                <button onclick="generateReport()" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    보고서 생성
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div id="report-loading" class="hidden card p-16 mb-6 text-center">
+            <div class="spinner spinner-lg mx-auto mb-4"></div>
+            <p class="text-slate-400 mb-2">AI 보고서 생성 중...</p>
+            <p id="report-progress" class="text-slate-600 text-xs">데이터 수집 및 분석을 진행하고 있습니다</p>
+        </div>
+
+        <!-- Result -->
+        <div id="report-result" class="hidden">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="font-semibold text-slate-200">분석 보고서</h3>
+                <button onclick="downloadReport()" class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-1.5 rounded-lg text-sm flex items-center gap-2 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    다운로드 (.md)
+                </button>
+            </div>
+            <div id="report-content" class="card p-6 markdown-body">
+            </div>
+        </div>
+
+        <!-- Placeholder -->
+        <div id="report-placeholder" class="card p-16 text-center">
+            <svg class="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>
+            <p class="text-slate-500 text-sm">자산을 선택하고 AI 보고서를 생성하세요</p>
+            <p class="text-slate-600 text-xs mt-1">기술적 분석 및 시장 전망 리포트</p>
+        </div>
+    </section>
+
+</main>
+
+<!-- Footer -->
+<footer class="border-t border-slate-800 mt-8 py-4 text-center text-xs text-slate-600">
+    Song Jongun's Market Watch &copy; 2026 Song Jongun (menwchen@mac.com) &mdash; All rights reserved. Financial data for informational purposes only.
+</footer>
+
+<script>
+// ==================== GLOBAL STATE ====================
+const ALL_ASSETS = ['WTI','BRENT','GOLD','SILVER','NATGAS','SPY','SPX','NASDAQ','DOW','KOSPI','EURUSD','USDJPY','USDKRW','DXY','BTC','ETH','US10Y'];
+const DEFAULT_ASSETS = ['WTI','SPY','BTC','GOLD','KOSPI','EURUSD','USDKRW','US10Y'];
+const ASSET_NAMES = {
+    WTI: 'WTI 원유', BRENT: '브렌트유', GOLD: '금', SILVER: '은', NATGAS: '천연가스',
+    SPY: 'S&P 500 ETF', SPX: 'S&P 500', NASDAQ: '나스닥', DOW: '다우존스', KOSPI: 'KOSPI',
+    EURUSD: 'EUR/USD', USDJPY: 'USD/JPY', USDKRW: 'USD/KRW', DXY: '달러인덱스',
+    BTC: '비트코인', ETH: '이더리움', US10Y: '미국 10년물'
+};
+const MACRO_LABELS = {
+    fed_funds_rate: { label: '기준금리', unit: '%' },
+    cpi_yoy: { label: 'CPI (전년비)', unit: '%' },
+    unemployment: { label: '실업률', unit: '%' },
+    us10y_yield: { label: '10Y 국채', unit: '%' },
+    yield_spread: { label: '수익률곡선', unit: 'bp' }
+};
+
+let state = {
+    selectedAsset: DEFAULT_ASSETS[0],
+    selectedPeriod: '1mo',
+    reportLang: 'ko',
+    reportMarkdown: '',
+    charts: {}
+};
+
+// ==================== UTILITIES ====================
+function showToast(msg, type = 'error') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity 0.3s'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
+async function apiFetch(url, options = {}) {
+    try {
+        const res = await fetch(url, options);
+        if (!res.ok) throw new Error(`API 오류 (${res.status})`);
+        return await res.json();
+    } catch (e) {
+        showToast(e.message || '네트워크 오류가 발생했습니다');
+        throw e;
+    }
+}
+
+function formatNumber(n, decimals = 2) {
+    if (n == null || isNaN(n)) return '-';
+    return Number(n).toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
+function formatPrice(n) {
+    if (n == null || isNaN(n)) return '-';
+    const abs = Math.abs(n);
+    if (abs >= 10000) return formatNumber(n, 0);
+    if (abs >= 100) return formatNumber(n, 2);
+    if (abs >= 1) return formatNumber(n, 2);
+    return formatNumber(n, 4);
+}
+
+function destroyChart(key) {
+    if (state.charts[key]) { state.charts[key].destroy(); state.charts[key] = null; }
+}
+
+// ==================== TAB SWITCHING ====================
+function switchTab(tab) {
+    document.querySelectorAll('[id^="tab-"]').forEach(s => s.classList.add('hidden'));
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        if (b.dataset.tab === tab) b.classList.add('active');
+    });
+}
+
+// ==================== TAB 1: DASHBOARD ====================
+async function loadDashboard() {
+    const assetsStr = DEFAULT_ASSETS.join(',');
+    const cardsEl = document.getElementById('price-cards');
+    cardsEl.innerHTML = DEFAULT_ASSETS.map(a => `
+        <div class="card card-hover p-4 transition" style="min-height:90px">
+            <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-slate-500">${ASSET_NAMES[a] || a}</span>
+            </div>
+            <div class="h-5 bg-slate-700 rounded animate-pulse w-2/3 mb-2"></div>
+            <div class="h-3 bg-slate-700 rounded animate-pulse w-1/3"></div>
+        </div>
+    `).join('');
+
+    try {
+        const data = await apiFetch(`/api/snapshot?assets=${assetsStr}`);
+        renderPriceCards(data.prices || {});
+        renderMacroCards(data.macro || {});
+    } catch (e) {
+        // skeleton stays
+    }
+    loadPriceChart(state.selectedAsset, state.selectedPeriod);
+}
+
+function renderPriceCards(prices) {
+    const cardsEl = document.getElementById('price-cards');
+    cardsEl.innerHTML = DEFAULT_ASSETS.map(a => {
+        const d = prices[a];
+        if (!d) return `<div class="card p-4"><span class="text-xs text-slate-500">${ASSET_NAMES[a]}</span><p class="text-slate-600 text-sm mt-1">데이터 없음</p></div>`;
+        const isUp = (d.change || 0) >= 0;
+        const color = isUp ? 'text-emerald-400' : 'text-red-400';
+        const arrow = isUp ? '+' : '';
+        const active = a === state.selectedAsset ? 'card-active' : '';
+        return `
+            <div class="card card-hover p-4 transition ${active}" onclick="selectAsset('${a}')">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-xs text-slate-500 font-medium">${ASSET_NAMES[a] || a}</span>
+                    <span class="text-[10px] text-slate-600">${a}</span>
+                </div>
+                <p class="text-xl font-bold text-slate-100 mb-0.5">${formatPrice(d.price)}</p>
+                <p class="text-xs ${color} font-medium">
+                    ${arrow}${formatPrice(d.change)} (${arrow}${formatNumber(d.change_pct)}%)
+                </p>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderMacroCards(macro) {
+    const el = document.getElementById('macro-cards');
+    const keys = Object.keys(MACRO_LABELS);
+    el.innerHTML = keys.map(k => {
+        const info = MACRO_LABELS[k];
+        const d = macro[k];
+        if (!d) return `
+            <div class="card p-4">
+                <span class="text-xs text-slate-500">${info.label}</span>
+                <p class="text-slate-600 text-sm mt-1">-</p>
+            </div>`;
+        return `
+            <div class="card p-4">
+                <span class="text-xs text-slate-500">${info.label}</span>
+                <p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(d.value)}${info.unit ? '<span class="text-sm text-slate-400 ml-0.5">' + info.unit + '</span>' : ''}</p>
+                <p class="text-[10px] text-slate-600 mt-0.5">${d.date || ''}</p>
+            </div>`;
+    }).join('');
+}
+
+function selectAsset(asset) {
+    state.selectedAsset = asset;
+    // Re-highlight card
+    document.querySelectorAll('#price-cards .card').forEach(c => c.classList.remove('card-active'));
+    const cards = document.querySelectorAll('#price-cards .card');
+    const idx = DEFAULT_ASSETS.indexOf(asset);
+    if (idx >= 0 && cards[idx]) cards[idx].classList.add('card-active');
+    loadPriceChart(asset, state.selectedPeriod);
+}
+
+function changePeriod(period, btn) {
+    state.selectedPeriod = period;
+    document.querySelectorAll('#tab-dashboard .period-btn').forEach(b => {
+        b.classList.remove('active', 'bg-blue-600', 'text-white');
+        b.classList.add('bg-slate-700', 'text-slate-300');
+    });
+    btn.classList.add('active', 'bg-blue-600', 'text-white');
+    btn.classList.remove('bg-slate-700', 'text-slate-300');
+    loadPriceChart(state.selectedAsset, period);
+}
+
+async function loadPriceChart(asset, period) {
+    const loading = document.getElementById('chart-loading');
+    loading.classList.remove('hidden');
+    document.getElementById('chart-title').textContent = `${ASSET_NAMES[asset] || asset} 가격 차트`;
+
+    try {
+        const data = await apiFetch(`/api/history?asset=${asset}&period=${period}`);
+        renderPriceChart(data, asset);
+    } catch (e) {
+        // keep old chart
+    } finally {
+        loading.classList.add('hidden');
+    }
+}
+
+function renderPriceChart(data, asset) {
+    destroyChart('price');
+    const ctx = document.getElementById('priceChart').getContext('2d');
+    const labels = (data.dates || []).map(d => {
+        const dt = new Date(d);
+        return `${dt.getMonth()+1}/${dt.getDate()}`;
+    });
+    const closes = data.close || [];
+    const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+    gradient.addColorStop(0, 'rgba(59,130,246,0.3)');
+    gradient.addColorStop(1, 'rgba(59,130,246,0.0)');
+
+    state.charts.price = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: ASSET_NAMES[asset] || asset,
+                data: closes,
+                borderColor: '#3b82f6',
+                backgroundColor: gradient,
+                fill: true,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHitRadius: 10,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#94a3b8',
+                    padding: 10,
+                    displayColors: false,
+                    callbacks: {
+                        label: ctx => `${formatPrice(ctx.parsed.y)}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(51,65,85,0.5)', drawBorder: false },
+                    ticks: { color: '#64748b', maxTicksLimit: 12, font: { size: 10 } }
+                },
+                y: {
+                    grid: { color: 'rgba(51,65,85,0.5)', drawBorder: false },
+                    ticks: { color: '#64748b', font: { size: 10 }, callback: v => formatPrice(v) }
+                }
+            }
+        }
+    });
+}
+
+// ==================== TAB 2: SIMULATION ====================
+function populateSimAssets() {
+    const sel = document.getElementById('sim-asset');
+    sel.innerHTML = ALL_ASSETS.map(a => `<option value="${a}">${ASSET_NAMES[a]} (${a})</option>`).join('');
+}
+
+async function runSimulation() {
+    const asset = document.getElementById('sim-asset').value;
+    const days = document.getElementById('sim-days').value;
+    document.getElementById('sim-loading').classList.remove('hidden');
+    document.getElementById('sim-results').classList.add('hidden');
+    document.getElementById('sim-placeholder').classList.add('hidden');
+
+    try {
+        const data = await apiFetch(`/api/simulate?asset=${asset}&days=${days}`);
+        document.getElementById('sim-loading').classList.add('hidden');
+        document.getElementById('sim-results').classList.remove('hidden');
+        renderSimResults(data, asset);
+    } catch (e) {
+        document.getElementById('sim-loading').classList.add('hidden');
+        document.getElementById('sim-placeholder').classList.remove('hidden');
+    }
+}
+
+function renderSimResults(data, asset) {
+    const stats = data.statistics || {};
+    const current = data.current_price || 0;
+    const pAbove = ((data.probability_above_current || 0) * 100).toFixed(1);
+    const pBelow = ((data.probability_below_current || 0) * 100).toFixed(1);
+
+    // Stats panel
+    const statsEl = document.getElementById('sim-stats');
+    statsEl.innerHTML = `
+        <div class="flex justify-between text-sm"><span class="text-slate-400">현재 가격</span><span class="text-slate-200 font-semibold">${formatPrice(current)}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-400">평균 예측</span><span class="text-slate-200 font-semibold">${formatPrice(stats.mean)}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-400">중앙값</span><span class="text-slate-200">${formatPrice(stats.median)}</span></div>
+        <hr class="border-slate-700">
+        <div class="flex justify-between text-sm"><span class="text-slate-400">90% 신뢰구간</span><span class="text-slate-200 text-xs">${formatPrice(stats.percentile_5)} ~ ${formatPrice(stats.percentile_95)}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-400">VaR 95%</span><span class="text-red-400 font-semibold">${formatPrice(data.var_95)}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-400">VaR 99%</span><span class="text-red-400 font-semibold">${formatPrice(data.var_99)}</span></div>
+        <hr class="border-slate-700">
+        <div>
+            <div class="flex justify-between text-sm mb-1"><span class="text-emerald-400">상승 확률</span><span class="text-emerald-400 font-semibold">${pAbove}%</span></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill bg-emerald-500" style="width:${pAbove}%"></div></div>
+        </div>
+        <div>
+            <div class="flex justify-between text-sm mb-1"><span class="text-red-400">하락 확률</span><span class="text-red-400 font-semibold">${pBelow}%</span></div>
+            <div class="progress-bar-bg"><div class="progress-bar-fill bg-red-500" style="width:${pBelow}%"></div></div>
+        </div>
+        <hr class="border-slate-700">
+        <div class="flex justify-between text-sm"><span class="text-slate-400">일일 변동성</span><span class="text-slate-200">${((data.volatility_daily || 0) * 100).toFixed(2)}%</span></div>
+    `;
+
+    // Histogram
+    renderHistogram(data, current, stats);
+
+    // Sample paths
+    renderSamplePaths(data);
+}
+
+function renderHistogram(data, current, stats) {
+    destroyChart('histogram');
+    const hist = data.histogram || {};
+    const counts = hist.counts || [];
+    const edges = hist.edges || [];
+    const labels = [];
+    const barData = [];
+    for (let i = 0; i < counts.length; i++) {
+        const mid = ((edges[i] || 0) + (edges[i+1] || 0)) / 2;
+        labels.push(formatPrice(mid));
+        barData.push(counts[i]);
+    }
+
+    const ctx = document.getElementById('histogramChart').getContext('2d');
+    state.charts.histogram = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: barData,
+                backgroundColor: 'rgba(59,130,246,0.6)',
+                borderColor: 'rgba(59,130,246,0.8)',
+                borderWidth: 1,
+                borderRadius: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: '#1e293b',
+                    borderColor: '#334155',
+                    borderWidth: 1,
+                    titleColor: '#e2e8f0',
+                    bodyColor: '#94a3b8'
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 9 } }
+                },
+                y: {
+                    grid: { color: 'rgba(51,65,85,0.5)', drawBorder: false },
+                    ticks: { color: '#64748b', font: { size: 10 } }
+                }
+            }
+        },
+        plugins: [{
+            id: 'verticalLines',
+            afterDraw(chart) {
+                const { ctx, chartArea, scales } = chart;
+                const xScale = scales.x;
+                const yTop = chartArea.top;
+                const yBottom = chartArea.bottom;
+
+                function drawLine(value, color, label) {
+                    // Map value to pixel position
+                    const edgeMin = edges[0] || 0;
+                    const edgeMax = edges[edges.length - 1] || 1;
+                    const pct = (value - edgeMin) / (edgeMax - edgeMin);
+                    const x = chartArea.left + pct * (chartArea.right - chartArea.left);
+                    if (x < chartArea.left || x > chartArea.right) return;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.setLineDash([4, 3]);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 1.5;
+                    ctx.moveTo(x, yTop);
+                    ctx.lineTo(x, yBottom);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                    ctx.fillStyle = color;
+                    ctx.font = '10px Inter, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(label, x, yTop - 4);
+                    ctx.restore();
+                }
+
+                drawLine(current, '#f59e0b', '현재');
+                if (stats.mean) drawLine(stats.mean, '#22c55e', '평균');
+                if (stats.percentile_5) drawLine(stats.percentile_5, '#ef4444', '5%');
+                if (stats.percentile_95) drawLine(stats.percentile_95, '#ef4444', '95%');
+            }
+        }]
+    });
+}
+
+function renderSamplePaths(data) {
+    destroyChart('paths');
+    const paths = data.sample_paths || [];
+    if (paths.length === 0) return;
+    const numDays = paths[0].length;
+    const labels = Array.from({ length: numDays }, (_, i) => `Day ${i}`);
+    const datasets = paths.slice(0, 100).map((p, i) => ({
+        data: p,
+        borderColor: `rgba(59,130,246,${0.08})`,
+        borderWidth: 1,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: false
+    }));
+
+    // Add mean path
+    const meanPath = [];
+    for (let d = 0; d < numDays; d++) {
+        let sum = 0, count = 0;
+        paths.forEach(p => { if (p[d] != null) { sum += p[d]; count++; } });
+        meanPath.push(count ? sum / count : null);
+    }
+    datasets.push({
+        label: '평균 경로',
+        data: meanPath,
+        borderColor: '#f59e0b',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        tension: 0.1,
+        fill: false
+    });
+
+    const ctx = document.getElementById('pathsChart').getContext('2d');
+    state.charts.paths = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false },
+                    ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 10 } }
+                },
+                y: {
+                    grid: { color: 'rgba(51,65,85,0.3)', drawBorder: false },
+                    ticks: { color: '#64748b', font: { size: 10 }, callback: v => formatPrice(v) }
+                }
+            }
+        }
+    });
+}
+
+// ==================== TAB 3: CORRELATION ====================
+function populateCorrAssets() {
+    const defaults = ['WTI','SPY','GOLD','BTC','KOSPI','USDKRW'];
+    const container = document.getElementById('corr-assets');
+    container.innerHTML = ALL_ASSETS.map(a => `
+        <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" class="checkbox-custom" value="${a}" ${defaults.includes(a) ? 'checked' : ''}>
+            ${a}
+        </label>
+    `).join('');
+}
+
+function getSelectedCorrAssets() {
+    return Array.from(document.querySelectorAll('#corr-assets input:checked')).map(c => c.value);
+}
+
+async function runCorrelation() {
+    const assets = getSelectedCorrAssets();
+    if (assets.length < 2) { showToast('2개 이상의 자산을 선택하세요'); return; }
+    const period = document.getElementById('corr-period').value;
+    document.getElementById('corr-loading').classList.remove('hidden');
+    document.getElementById('corr-results').classList.add('hidden');
+    document.getElementById('corr-placeholder').classList.add('hidden');
+
+    try {
+        const data = await apiFetch(`/api/correlation?assets=${assets.join(',')}&period=${period}`);
+        document.getElementById('corr-loading').classList.add('hidden');
+        document.getElementById('corr-results').classList.remove('hidden');
+        renderHeatmap(data);
+        renderCorrPairs(data);
+    } catch (e) {
+        document.getElementById('corr-loading').classList.add('hidden');
+        document.getElementById('corr-placeholder').classList.remove('hidden');
+    }
+}
+
+function renderHeatmap(data) {
+    const assets = data.assets || [];
+    const matrix = data.matrix || [];
+    const n = assets.length;
+    const cellSize = Math.min(70, Math.max(45, Math.floor(600 / n)));
+    const labelWidth = 60;
+    const labelHeight = 60;
+    const width = labelWidth + n * cellSize;
+    const height = labelHeight + n * cellSize;
+
+    const canvas = document.getElementById('heatmapCanvas');
+    canvas.width = width * 2;
+    canvas.height = height * 2;
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(2, 2);
+    ctx.clearRect(0, 0, width, height);
+
+    function corrColor(v) {
+        if (v >= 0) {
+            const t = Math.min(v, 1);
+            const r = Math.round(255 - t * 220);
+            const g = Math.round(255 - t * 100);
+            const b = Math.round(255 - t * 220);
+            return `rgb(${r},${g},${b})`;
+        } else {
+            const t = Math.min(Math.abs(v), 1);
+            const r = Math.round(255 - t * 100);
+            const g = Math.round(255 - t * 220);
+            const b = Math.round(255 - t * 220);
+            return `rgb(${r},${g},${b})`;
+        }
+    }
+
+    // Draw cells
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            const v = matrix[i] ? (matrix[i][j] || 0) : 0;
+            const x = labelWidth + j * cellSize;
+            const y = labelHeight + i * cellSize;
+
+            ctx.fillStyle = corrColor(v);
+            ctx.fillRect(x, y, cellSize - 1, cellSize - 1);
+
+            // Value text
+            ctx.fillStyle = Math.abs(v) > 0.5 ? '#fff' : '#cbd5e1';
+            ctx.font = `${Math.min(12, cellSize / 4.5)}px Inter, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(v.toFixed(2), x + cellSize / 2, y + cellSize / 2);
+        }
+    }
+
+    // Column labels (top)
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = `${Math.min(11, cellSize / 5)}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    for (let j = 0; j < n; j++) {
+        ctx.save();
+        ctx.translate(labelWidth + j * cellSize + cellSize / 2, labelHeight - 4);
+        ctx.rotate(-Math.PI / 4);
+        ctx.fillText(assets[j], 0, 0);
+        ctx.restore();
+    }
+
+    // Row labels (left)
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < n; i++) {
+        ctx.fillText(assets[i], labelWidth - 6, labelHeight + i * cellSize + cellSize / 2);
+    }
+}
+
+function renderCorrPairs(data) {
+    const el = document.getElementById('corr-pairs');
+    let html = '';
+    const pos = data.strongest_positive || [];
+    const neg = data.strongest_negative || [];
+
+    if (pos.length) {
+        html += '<div class="card p-4"><h4 class="text-sm font-semibold text-emerald-400 mb-3">강한 양의 상관관계</h4><div class="space-y-2">';
+        pos.forEach(p => {
+            const v = p.correlation || p[2] || 0;
+            const pct = (Math.abs(v) * 100).toFixed(0);
+            html += `<div class="flex items-center justify-between text-sm">
+                <span class="text-slate-300">${p.pair || (p[0]+' / '+p[1])}</span>
+                <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg w-20"><div class="progress-bar-fill bg-emerald-500" style="width:${pct}%"></div></div>
+                    <span class="text-emerald-400 font-mono text-xs w-12 text-right">${Number(v).toFixed(3)}</span>
+                </div>
+            </div>`;
+        });
+        html += '</div></div>';
+    }
+    if (neg.length) {
+        html += '<div class="card p-4"><h4 class="text-sm font-semibold text-red-400 mb-3">강한 음의 상관관계</h4><div class="space-y-2">';
+        neg.forEach(p => {
+            const v = p.correlation || p[2] || 0;
+            const pct = (Math.abs(v) * 100).toFixed(0);
+            html += `<div class="flex items-center justify-between text-sm">
+                <span class="text-slate-300">${p.pair || (p[0]+' / '+p[1])}</span>
+                <div class="flex items-center gap-2">
+                    <div class="progress-bar-bg w-20"><div class="progress-bar-fill bg-red-500" style="width:${pct}%"></div></div>
+                    <span class="text-red-400 font-mono text-xs w-12 text-right">${Number(v).toFixed(3)}</span>
+                </div>
+            </div>`;
+        });
+        html += '</div></div>';
+    }
+    el.innerHTML = html;
+}
+
+// ==================== TAB 4: REPORT ====================
+function populateReportAssets() {
+    const defaults = ['WTI','SPY','BTC','GOLD'];
+    const container = document.getElementById('report-assets');
+    container.innerHTML = ALL_ASSETS.map(a => `
+        <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+            <input type="checkbox" class="checkbox-custom" value="${a}" ${defaults.includes(a) ? 'checked' : ''}>
+            ${a}
+        </label>
+    `).join('');
+}
+
+function setLang(lang) {
+    state.reportLang = lang;
+    document.getElementById('lang-ko').className = lang === 'ko' ? 'px-3 py-2 text-sm bg-blue-600 text-white' : 'px-3 py-2 text-sm text-slate-300 hover:bg-slate-600';
+    document.getElementById('lang-en').className = lang === 'en' ? 'px-3 py-2 text-sm bg-blue-600 text-white' : 'px-3 py-2 text-sm text-slate-300 hover:bg-slate-600';
+}
+
+function getSelectedReportAssets() {
+    return Array.from(document.querySelectorAll('#report-assets input:checked')).map(c => c.value);
+}
+
+async function generateReport() {
+    const assets = getSelectedReportAssets();
+    if (assets.length === 0) { showToast('1개 이상의 자산을 선택하세요'); return; }
+    const period = document.getElementById('report-period').value;
+
+    document.getElementById('report-loading').classList.remove('hidden');
+    document.getElementById('report-result').classList.add('hidden');
+    document.getElementById('report-placeholder').classList.add('hidden');
+
+    // Progress animation
+    const progressEl = document.getElementById('report-progress');
+    const msgs = ['데이터 수집 중...', '기술적 분석 수행 중...', '시장 동향 분석 중...', '보고서 작성 중...'];
+    let msgIdx = 0;
+    const progressInterval = setInterval(() => {
+        msgIdx = (msgIdx + 1) % msgs.length;
+        progressEl.textContent = msgs[msgIdx];
+    }, 2500);
+
+    try {
+        const data = await apiFetch('/api/report', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ assets, period, lang: state.reportLang })
+        });
+        clearInterval(progressInterval);
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-result').classList.remove('hidden');
+
+        state.reportMarkdown = data.report || '';
+        document.getElementById('report-content').innerHTML = marked.parse(state.reportMarkdown);
+    } catch (e) {
+        clearInterval(progressInterval);
+        document.getElementById('report-loading').classList.add('hidden');
+        document.getElementById('report-placeholder').classList.remove('hidden');
+    }
+}
+
+function downloadReport() {
+    if (!state.reportMarkdown) return;
+    const blob = new Blob([state.reportMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `MarketWatch_Report_${new Date().toISOString().slice(0, 10)}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('보고서가 다운로드되었습니다', 'success');
+}
+
+// ==================== INITIALIZATION ====================
+function init() {
+    populateSimAssets();
+    populateCorrAssets();
+    populateReportAssets();
+    loadDashboard();
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+
+</body>
+</html>

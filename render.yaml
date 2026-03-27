@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: market-watch
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python web/app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12"
