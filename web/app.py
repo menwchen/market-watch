@@ -31,6 +31,7 @@ from data_sources.yahoo_finance import YahooFinanceSource
 from data_sources.fred import FREDSource
 from data_sources.eia import EIASource
 from data_sources.news import NewsSource
+from data_sources.bok import BOKSource
 from analysis.technical import TechnicalAnalyzer
 from analysis.correlation import CorrelationAnalyzer
 from analysis.macro import MacroAnalyzer
@@ -45,6 +46,7 @@ yahoo = YahooFinanceSource()
 fred = FREDSource()
 eia = EIASource()
 news = NewsSource()
+bok = BOKSource()
 
 
 @app.route("/")
@@ -67,7 +69,7 @@ def api_snapshot():
         except Exception as e:
             return asset, {"error": str(e)}
 
-    def fetch_macro():
+    def fetch_macro_us():
         if not Config.FRED_API_KEY:
             return {}
         try:
@@ -77,18 +79,27 @@ def api_snapshot():
         except Exception:
             return {}
 
+    def fetch_macro_kr():
+        if not Config.BOK_API_KEY:
+            return {}
+        try:
+            return bok.fetch_macro_snapshot()
+        except Exception:
+            return {}
+
     with ThreadPoolExecutor(max_workers=10) as pool:
-        # Fetch prices + macro in parallel
         price_futures = {pool.submit(fetch_price, a): a for a in assets}
-        macro_future = pool.submit(fetch_macro)
+        macro_us_future = pool.submit(fetch_macro_us)
+        macro_kr_future = pool.submit(fetch_macro_kr)
 
         for f in as_completed(price_futures):
             asset, data = f.result()
             prices[asset] = data
 
-        macro = macro_future.result()
+        macro = macro_us_future.result()
+        macro_kr = macro_kr_future.result()
 
-    return jsonify({"prices": prices, "macro": macro})
+    return jsonify({"prices": prices, "macro": macro, "macro_kr": macro_kr})
 
 
 @app.route("/api/history")

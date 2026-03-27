@@ -125,11 +125,17 @@
             </div>
         </div>
 
-        <!-- Macro Indicators -->
+        <!-- US Macro Indicators -->
         <div class="mb-6">
-            <h3 class="font-semibold text-slate-200 mb-3">거시경제 지표</h3>
+            <h3 class="font-semibold text-slate-200 mb-3">🇺🇸 미국 거시경제 지표</h3>
             <div id="macro-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                <!-- Filled dynamically -->
+            </div>
+        </div>
+
+        <!-- KR Macro Indicators -->
+        <div class="mb-6">
+            <h3 class="font-semibold text-slate-200 mb-3">🇰🇷 한국 거시경제 지표</h3>
+            <div id="macro-kr-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             </div>
         </div>
     </section>
@@ -335,6 +341,13 @@ const MACRO_LABELS = {
     treasury_10y: { label: '10Y 국채', unit: '%' },
     yield_curve_10y2y: { label: '수익률곡선', unit: '%' }
 };
+const MACRO_KR_LABELS = {
+    base_rate: { label: '기준금리' },
+    cpi: { label: '소비자물가' },
+    unemployment: { label: '실업률' },
+    gov_bond_3y: { label: '국고채 3년' },
+    gov_bond_10y: { label: '국고채 10년' },
+};
 
 let state = {
     selectedAsset: DEFAULT_ASSETS[0],
@@ -422,6 +435,7 @@ async function loadDashboard() {
         const data = await apiFetch(`/api/snapshot?assets=${assetsStr}`);
         renderPriceCards(data.prices || {});
         renderMacroCards(data.macro || {});
+        renderMacroKrCards(data.macro_kr || {});
     } catch (e) {
         // skeleton stays
     }
@@ -467,6 +481,28 @@ function renderMacroCards(macro) {
             <div class="card p-4">
                 <span class="text-xs text-slate-500">${info.label}</span>
                 <p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(d.value)}${info.unit ? '<span class="text-sm text-slate-400 ml-0.5">' + info.unit + '</span>' : ''}</p>
+                <p class="text-[10px] text-slate-600 mt-0.5">${d.date || ''}</p>
+            </div>`;
+    }).join('');
+}
+
+function renderMacroKrCards(macro_kr) {
+    const el = document.getElementById('macro-kr-cards');
+    if (!el) return;
+    const keys = Object.keys(MACRO_KR_LABELS);
+    el.innerHTML = keys.map(k => {
+        const info = MACRO_KR_LABELS[k];
+        const d = macro_kr[k];
+        if (!d || d.value == null) return `
+            <div class="card p-4">
+                <span class="text-xs text-slate-500">${info.label}</span>
+                <p class="text-slate-600 text-sm mt-1">-</p>
+            </div>`;
+        const unit = d.unit || '';
+        return `
+            <div class="card p-4">
+                <span class="text-xs text-slate-500">${d.label || info.label}</span>
+                <p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(d.value)}${unit ? '<span class="text-sm text-slate-400 ml-0.5">' + unit + '</span>' : ''}</p>
                 <p class="text-[10px] text-slate-600 mt-0.5">${d.date || ''}</p>
             </div>`;
     }).join('');

@@ -10,6 +10,7 @@ from data_sources.yahoo_finance import YahooFinanceSource
 from data_sources.fred import FREDSource
 from data_sources.eia import EIASource
 from data_sources.news import NewsSource
+from data_sources.bok import BOKSource
 
 __all__ = [
     "DataSource",
@@ -17,4 +18,5 @@ __all__ = [
     "FREDSource",
     "EIASource",
     "NewsSource",
+    "BOKSource",
 ]

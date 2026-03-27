@@ -15,6 +15,9 @@ class Config:
     EIA_API_KEY = os.getenv("EIA_API_KEY", "")
     GNEWS_API_KEY = os.getenv("GNEWS_API_KEY", "")
 
+    # Bank of Korea ECOS
+    BOK_API_KEY = os.getenv("BOK_API_KEY", "")
+
     # Cache
     CACHE_DB_PATH = os.path.join(os.path.dirname(__file__), "storage", "cache.db")
     CACHE_TTL_HOURS = 1  # API response cache duration
