@@ -22,15 +22,19 @@ class ReportAgent:
     """Generates market analysis reports using ReACT pattern with real data."""
 
     def __init__(self, language: str = "Korean"):
-        self.client = anthropic.Anthropic(api_key=Config.ANTHROPIC_API_KEY)
+        self.client = anthropic.Anthropic(
+            api_key=Config.ANTHROPIC_API_KEY,
+            timeout=120.0,
+        )
         self.model = Config.LLM_MODEL
         self.tools = ReportTools()
         self.store = ReportStore()
         self.language = language
         self.log: list[dict] = []
+        self.max_sections = 3  # Keep sections low for memory/time
 
     def _call_llm(self, system: str, messages: list[dict],
-                  max_tokens: int = 4096) -> str:
+                  max_tokens: int = 2048) -> str:
         response = self.client.messages.create(
             model=self.model,
             max_tokens=max_tokens,
@@ -125,6 +129,9 @@ class ReportAgent:
                     {"title": "Forecast & Risk", "description": "Forward-looking analysis"},
                 ],
             }
+        # Limit sections to save time/memory
+        if len(outline.get("sections", [])) > self.max_sections:
+            outline["sections"] = outline["sections"][:self.max_sections]
         self._log("outline", {"title": outline["title"],
                                "sections": len(outline["sections"])})
         return outline

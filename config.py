@@ -21,8 +21,8 @@ class Config:
 
     # Report
     REPORT_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output", "reports")
-    REPORT_MAX_TOOL_CALLS = 10
-    REPORT_MAX_SECTIONS = 5
+    REPORT_MAX_TOOL_CALLS = 5
+    REPORT_MAX_SECTIONS = 3
 
     # Asset symbols mapping
     ASSET_SYMBOLS = {
