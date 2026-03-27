@@ -199,19 +199,24 @@ def api_news():
 @app.route("/api/report", methods=["POST"])
 def api_report():
     if not Config.ANTHROPIC_API_KEY:
-        return jsonify({"error": "ANTHROPIC_API_KEY not configured"}), 500
+        return jsonify({"error": "ANTHROPIC_API_KEY not configured. Set ANTHROPIC_API_KEY in environment variables."}), 500
 
-    body = request.get_json()
-    assets = body.get("assets", ["WTI", "SPY", "BTC"])
-    period = body.get("period", "3mo")
-    lang = body.get("lang", "ko")
+    try:
+        body = request.get_json()
+        assets = body.get("assets", ["WTI", "SPY", "BTC"])
+        period = body.get("period", "3mo")
+        lang = body.get("lang", "ko")
 
-    from report.agent import ReportAgent
-    language = "English" if lang == "en" else "Korean"
-    agent = ReportAgent(language=language)
-    report = agent.generate_report(assets=assets, period=period)
+        from report.agent import ReportAgent
+        language = "English" if lang == "en" else "Korean"
+        agent = ReportAgent(language=language)
+        report = agent.generate_report(assets=assets, period=period)
 
-    return jsonify({"report": report})
+        return jsonify({"report": report})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Report generation failed: {str(e)}"}), 500
 
 
 if __name__ == "__main__":
