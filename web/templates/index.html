@@ -330,10 +330,10 @@ const ASSET_NAMES = {
 };
 const MACRO_LABELS = {
     fed_funds_rate: { label: '기준금리', unit: '%' },
-    cpi_yoy: { label: 'CPI (전년비)', unit: '%' },
+    cpi: { label: 'CPI', unit: '' },
     unemployment: { label: '실업률', unit: '%' },
-    us10y_yield: { label: '10Y 국채', unit: '%' },
-    yield_spread: { label: '수익률곡선', unit: 'bp' }
+    treasury_10y: { label: '10Y 국채', unit: '%' },
+    yield_curve_10y2y: { label: '수익률곡선', unit: '%' }
 };
 
 let state = {
@@ -356,11 +356,22 @@ function showToast(msg, type = 'error') {
 
 async function apiFetch(url, options = {}) {
     try {
-        const res = await fetch(url, options);
-        if (!res.ok) throw new Error(`API 오류 (${res.status})`);
+        const controller = new AbortController();
+        const timeoutMs = options._timeout || 30000;
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        const res = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timer);
+        if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `API 오류 (${res.status})`);
+        }
         return await res.json();
     } catch (e) {
-        showToast(e.message || '네트워크 오류가 발생했습니다');
+        if (e.name === 'AbortError') {
+            showToast('요청 시간이 초과되었습니다');
+        } else {
+            showToast(e.message || '네트워크 오류가 발생했습니다');
+        }
         throw e;
     }
 }
@@ -962,7 +973,8 @@ async function generateReport() {
         const data = await apiFetch('/api/report', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ assets, period, lang: state.reportLang })
+            body: JSON.stringify({ assets, period, lang: state.reportLang }),
+            _timeout: 300000  // 5 minutes for report generation
         });
         clearInterval(progressInterval);
         document.getElementById('report-loading').classList.add('hidden');
@@ -974,6 +986,7 @@ async function generateReport() {
         clearInterval(progressInterval);
         document.getElementById('report-loading').classList.add('hidden');
         document.getElementById('report-placeholder').classList.remove('hidden');
+        showToast('보고서 생성 실패: ' + (e.message || '알 수 없는 오류'));
     }
 }
 

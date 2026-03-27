@@ -38,25 +38,39 @@ def index():
 
 @app.route("/api/snapshot")
 def api_snapshot():
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     assets_str = request.args.get("assets", "WTI,SPY,NASDAQ,GOLD,BTC,EURUSD,DXY,US10Y")
     assets = [a.strip() for a in assets_str.split(",")]
 
     prices = {}
-    for asset in assets:
-        try:
-            prices[asset] = yahoo.fetch_current_price(asset)
-        except Exception as e:
-            prices[asset] = {"error": str(e)}
 
-    macro = {}
-    if Config.FRED_API_KEY:
+    def fetch_price(asset):
+        try:
+            return asset, yahoo.fetch_current_price(asset)
+        except Exception as e:
+            return asset, {"error": str(e)}
+
+    def fetch_macro():
+        if not Config.FRED_API_KEY:
+            return {}
         try:
             snapshot = fred.fetch_macro_snapshot()
-            for k, v in snapshot.items():
-                if isinstance(v, dict) and v.get("value") is not None:
-                    macro[k] = v
+            return {k: v for k, v in snapshot.items()
+                    if isinstance(v, dict) and v.get("value") is not None}
         except Exception:
-            pass
+            return {}
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        # Fetch prices + macro in parallel
+        price_futures = {pool.submit(fetch_price, a): a for a in assets}
+        macro_future = pool.submit(fetch_macro)
+
+        for f in as_completed(price_futures):
+            asset, data = f.result()
+            prices[asset] = data
+
+        macro = macro_future.result()
 
     return jsonify({"prices": prices, "macro": macro})
 
