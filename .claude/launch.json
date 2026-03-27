@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "market-watch-dev",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["web/app.py"],
+      "port": 8080
+    },
+    {
+      "name": "market-watch-prod",
+      "runtimeExecutable": "gunicorn",
+      "runtimeArgs": ["wsgi:app", "--bind", "0.0.0.0:8080", "--timeout", "300"],
+      "port": 8080
+    }
+  ]
+}
