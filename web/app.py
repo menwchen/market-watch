@@ -4,13 +4,27 @@
 import sys
 import os
 import json
+import math
 import threading
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask, jsonify, request, render_template
+from flask.json.provider import DefaultJSONProvider
 from flask_cors import CORS
+
+
+class NaNSafeJSONProvider(DefaultJSONProvider):
+    """Replace NaN/Infinity with null in JSON output."""
+    def dumps(self, obj, **kwargs):
+        return json.dumps(obj, default=self._default, **kwargs)
+
+    @staticmethod
+    def _default(o):
+        if isinstance(o, float) and (math.isnan(o) or math.isinf(o)):
+            return None
+        return DefaultJSONProvider.default(None, o)
 
 from config import Config
 from data_sources.yahoo_finance import YahooFinanceSource
@@ -23,6 +37,8 @@ from analysis.macro import MacroAnalyzer
 from simulation.monte_carlo import MonteCarloSimulator
 
 app = Flask(__name__)
+app.json_provider_class = NaNSafeJSONProvider
+app.json = NaNSafeJSONProvider(app)
 CORS(app)
 
 yahoo = YahooFinanceSource()
@@ -85,6 +101,7 @@ def api_history():
     if history.empty:
         return jsonify({"error": f"No data for {asset}"}), 404
 
+    history = history.fillna(0)
     data = {
         "asset": asset,
         "dates": [str(d.date()) for d in history.index],
