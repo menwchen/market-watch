@@ -261,38 +261,22 @@
 
     <!-- ====== TAB 5: Korea Economy ====== -->
     <section id="tab-korea" class="hidden fade-in">
-        <!-- Header -->
         <div class="flex items-center justify-between mb-6">
-            <h2 class="text-xl font-bold text-slate-100">🇰🇷 한국 주요 경제지표</h2>
-            <button onclick="loadKoreaTab()" class="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1">
-                ⟳ 새로고침
-            </button>
+            <h2 class="text-xl font-bold text-slate-100">🇰🇷 한국 경제 대시보드</h2>
+            <button onclick="loadKoreaTab()" class="text-xs text-slate-500 hover:text-slate-300 flex items-center gap-1">⟳ 새로고침</button>
         </div>
 
-        <!-- Korea Macro Cards -->
+        <!-- Row 1: Key indicators -->
         <div class="mb-6">
-            <h3 class="font-semibold text-slate-200 mb-3">통화정책 & 물가</h3>
-            <div id="kr-monetary-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            </div>
+            <h3 class="font-semibold text-slate-200 mb-3">주요 경제지표</h3>
+            <div id="kr-key-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4"></div>
         </div>
 
-        <div class="mb-6">
-            <h3 class="font-semibold text-slate-200 mb-3">채권시장</h3>
-            <div id="kr-bond-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            </div>
-        </div>
-
-        <div class="mb-6">
-            <h3 class="font-semibold text-slate-200 mb-3">실물경제</h3>
-            <div id="kr-economy-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            </div>
-        </div>
-
-        <!-- KOSPI & USD/KRW Charts -->
+        <!-- Row 2: Charts -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <div class="card p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="font-semibold text-slate-200">KOSPI 지수</h3>
+                    <h3 class="font-semibold text-slate-200">KOSPI</h3>
                     <div class="flex gap-2">
                         <button onclick="loadKrChart('KOSPI','1mo')" class="kr-period-btn text-xs px-3 py-1 rounded-full bg-blue-600 text-white">1개월</button>
                         <button onclick="loadKrChart('KOSPI','3mo')" class="kr-period-btn text-xs px-3 py-1 rounded-full bg-slate-700 text-slate-300">3개월</button>
@@ -314,10 +298,28 @@
             </div>
         </div>
 
-        <!-- Korea vs US comparison -->
+        <!-- Row 3: Trade Dashboard -->
+        <div class="mb-6">
+            <h3 class="font-semibold text-slate-200 mb-3">무역 현황</h3>
+            <div id="kr-trade-cards" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+        </div>
+
+        <!-- Row 4: Trade chart + derived metrics -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div class="card p-5">
+                <h3 class="font-semibold text-slate-200 mb-3">월별 수출 추이</h3>
+                <canvas id="kr-exports-chart" height="200"></canvas>
+            </div>
+            <div class="card p-5">
+                <h3 class="font-semibold text-slate-200 mb-4">무역 분석</h3>
+                <div id="kr-trade-analysis" class="space-y-4"></div>
+            </div>
+        </div>
+
+        <!-- Row 5: Korea vs US comparison -->
         <div class="card p-5 mb-6">
             <h3 class="font-semibold text-slate-200 mb-4">🇰🇷 한국 vs 🇺🇸 미국 비교</h3>
-            <div id="kr-us-comparison" class="overflow-x-auto">
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead>
                         <tr class="text-slate-400 border-b border-slate-700">
@@ -327,8 +329,7 @@
                             <th class="text-right py-3 px-4">차이</th>
                         </tr>
                     </thead>
-                    <tbody id="kr-us-table-body">
-                    </tbody>
+                    <tbody id="kr-us-table-body"></tbody>
                 </table>
             </div>
         </div>
@@ -1122,74 +1123,142 @@ function downloadReport() {
 let krCharts = {};
 
 async function loadKoreaTab() {
+    // Fetch Korea-specific data
     try {
-        const data = await apiFetch('/api/snapshot?assets=KOSPI,USDKRW');
-        const kr = data.macro_kr || {};
-        const us = data.macro || {};
+        const [krData, snapData] = await Promise.all([
+            apiFetch('/api/korea'),
+            apiFetch('/api/snapshot?assets=KOSPI,USDKRW'),
+        ]);
 
-        // Monetary & Price cards
-        renderKrCardGroup('kr-monetary-cards', kr, ['base_rate', 'cpi']);
+        const kr = krData.macro || {};
+        const us = snapData.macro || {};
+        const trade = krData.trade || {};
+        const prices = krData.prices || {};
 
-        // Bond cards
-        renderKrCardGroup('kr-bond-cards', kr, ['gov_bond_3y', 'gov_bond_10y']);
+        // --- Key indicator cards (top row) ---
+        const keyEl = document.getElementById('kr-key-cards');
+        const keyItems = [];
 
-        // Real economy cards
-        renderKrCardGroup('kr-economy-cards', kr, ['unemployment']);
-
-        // KOSPI price card at top of economy section
-        const kospiData = (data.prices || {}).KOSPI;
-        const krwData = (data.prices || {}).USDKRW;
-
-        // Add live price cards to economy section
-        const econEl = document.getElementById('kr-economy-cards');
-        if (kospiData && !kospiData.error) {
-            const color = kospiData.change >= 0 ? 'text-emerald-400' : 'text-rose-400';
-            const sign = kospiData.change >= 0 ? '+' : '';
-            econEl.innerHTML += `
-                <div class="card p-4">
-                    <span class="text-xs text-slate-500">KOSPI</span>
-                    <p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(kospiData.price, 0)}</p>
-                    <p class="text-xs ${color} mt-0.5">${sign}${formatNumber(kospiData.change)} (${sign}${formatNumber(kospiData.change_pct)}%)</p>
-                </div>`;
+        // Live prices
+        const kospi = prices.KOSPI;
+        const krw = prices.USDKRW;
+        if (kospi && !kospi.error) {
+            const c = kospi.change >= 0 ? 'text-emerald-400' : 'text-rose-400';
+            const s = kospi.change >= 0 ? '+' : '';
+            keyItems.push(`<div class="card p-4"><span class="text-xs text-slate-500">KOSPI</span><p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(kospi.price, 0)}</p><p class="text-xs ${c}">${s}${formatNumber(kospi.change_pct)}%</p></div>`);
         }
-        if (krwData && !krwData.error) {
-            const color = krwData.change >= 0 ? 'text-rose-400' : 'text-emerald-400';
-            const sign = krwData.change >= 0 ? '+' : '';
-            econEl.innerHTML += `
-                <div class="card p-4">
-                    <span class="text-xs text-slate-500">원/달러 환율</span>
-                    <p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(krwData.price, 2)}</p>
-                    <p class="text-xs ${color} mt-0.5">${sign}${formatNumber(krwData.change)} (${sign}${formatNumber(krwData.change_pct)}%)</p>
-                </div>`;
+        if (krw && !krw.error) {
+            const c = krw.change >= 0 ? 'text-rose-400' : 'text-emerald-400';
+            const s = krw.change >= 0 ? '+' : '';
+            keyItems.push(`<div class="card p-4"><span class="text-xs text-slate-500">원/달러</span><p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(krw.price, 1)}</p><p class="text-xs ${c}">${s}${formatNumber(krw.change_pct)}%</p></div>`);
         }
 
-        // Comparison table
+        // Macro indicators
+        ['base_rate', 'cpi', 'unemployment', 'gov_bond_3y', 'gov_bond_10y'].forEach(k => {
+            const d = kr[k];
+            if (d && d.value != null) {
+                keyItems.push(`<div class="card p-4"><span class="text-xs text-slate-500">${d.label}</span><p class="text-2xl font-bold text-slate-100 mt-1">${formatNumber(d.value)}${d.unit ? '<span class="text-sm text-slate-400 ml-0.5">' + d.unit + '</span>' : ''}</p><p class="text-[10px] text-slate-600 mt-0.5">${d.date || ''}</p></div>`);
+            }
+        });
+        keyEl.innerHTML = keyItems.join('');
+
+        // --- Trade cards ---
+        const tradeEl = document.getElementById('kr-trade-cards');
+        const tradeItems = [];
+        const tradeKeys = ['exports', 'imports', 'trade_balance', 'current_account'];
+        tradeKeys.forEach(k => {
+            const d = trade[k];
+            if (d && d.value != null) {
+                const val = d.value;
+                const display = Math.abs(val) >= 10000 ? formatNumber(val / 1000, 1) + '억$' : formatNumber(val, 0) + '백만$';
+                const color = (k === 'trade_balance' || k === 'current_account') ? (val >= 0 ? 'text-emerald-400' : 'text-rose-400') : 'text-slate-100';
+                const sign = val >= 0 && (k === 'trade_balance' || k === 'current_account') ? '+' : '';
+                tradeItems.push(`<div class="card p-4"><span class="text-xs text-slate-500">${d.label}</span><p class="text-2xl font-bold ${color} mt-1">${sign}${display}</p><p class="text-[10px] text-slate-600 mt-0.5">${d.date || ''}</p></div>`);
+            }
+        });
+        tradeEl.innerHTML = tradeItems.join('');
+
+        // --- Trade analysis panel ---
+        const analysisEl = document.getElementById('kr-trade-analysis');
+        const analysisItems = [];
+
+        // 수출입 비율
+        if (trade.export_import_ratio != null) {
+            const ratio = trade.export_import_ratio;
+            const barColor = ratio >= 100 ? 'bg-emerald-500' : 'bg-rose-500';
+            analysisItems.push(`
+                <div><div class="flex justify-between text-sm mb-1"><span class="text-slate-400">수출/수입 비율</span><span class="text-slate-100 font-semibold">${ratio}%</span></div>
+                <div class="w-full bg-slate-700 rounded-full h-2"><div class="${barColor} h-2 rounded-full" style="width:${Math.min(ratio, 150) / 1.5}%"></div></div>
+                <p class="text-[10px] text-slate-500 mt-1">${ratio >= 100 ? '무역흑자 구조' : '무역적자 구조'}</p></div>`);
+        }
+
+        // 실질무역손익
+        if (trade.real_trade_balance != null) {
+            const bal = trade.real_trade_balance;
+            const display = Math.abs(bal) >= 10000 ? formatNumber(bal / 1000, 1) + '억$' : formatNumber(bal, 0) + '백만$';
+            const color = bal >= 0 ? 'text-emerald-400' : 'text-rose-400';
+            const sign = bal >= 0 ? '+' : '';
+            analysisItems.push(`
+                <div class="card p-4"><span class="text-xs text-slate-500">실질무역손익 (상품수지)</span>
+                <p class="text-2xl font-bold ${color} mt-1">${sign}${display}</p></div>`);
+        }
+
+        // 수출 전년비
+        if (trade.exports_yoy != null) {
+            const yoy = trade.exports_yoy;
+            const color = yoy >= 0 ? 'text-emerald-400' : 'text-rose-400';
+            const sign = yoy >= 0 ? '+' : '';
+            analysisItems.push(`
+                <div class="card p-4"><span class="text-xs text-slate-500">수출 전년동월비 (YoY)</span>
+                <p class="text-2xl font-bold ${color} mt-1">${sign}${yoy}%</p></div>`);
+        }
+
+        analysisEl.innerHTML = analysisItems.join('');
+
+        // --- Exports chart ---
+        const exportsSeries = trade.exports_series || [];
+        if (exportsSeries.length > 0) {
+            renderExportsChart(exportsSeries);
+        }
+
+        // --- KR vs US comparison ---
         renderKrUsComparison(kr, us);
 
-    } catch (e) { /* silent */ }
+    } catch (e) { console.error('Korea tab error:', e); }
 
-    // Load charts
     loadKrChart('KOSPI', '1mo');
     loadKrChart('USDKRW', '1mo');
 }
 
-function renderKrCardGroup(elementId, macro_kr, keys) {
-    const el = document.getElementById(elementId);
-    if (!el) return;
-    el.innerHTML = keys.map(k => {
-        const d = macro_kr[k];
-        if (!d || d.value == null) return `
-            <div class="card p-5">
-                <span class="text-xs text-slate-500">${k}</span>
-                <p class="text-slate-600 text-sm mt-1">데이터 없음</p>
-            </div>`;
-        return `
-            <div class="card p-5">
-                <span class="text-xs text-slate-500 uppercase tracking-wider">${d.label || k}</span>
-                <p class="text-3xl font-bold text-slate-100 mt-2">${formatNumber(d.value)}${d.unit ? '<span class="text-base text-slate-400 ml-1">' + d.unit + '</span>' : ''}</p>
-                <p class="text-xs text-slate-600 mt-1">${d.date || ''}</p>
-            </div>`;
-    }).join('');
+function renderExportsChart(series) {
+    const ctx = document.getElementById('kr-exports-chart');
+    if (!ctx) return;
+    if (krCharts['exports']) krCharts['exports'].destroy();
+
+    const labels = series.map(d => d.date);
+    const values = series.map(d => d.value / 1000); // 억달러
+
+    krCharts['exports'] = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: values.map((v, i) => i === values.length - 1 ? '#3b82f6' : '#334155'),
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { display: false },
+                tooltip: { callbacks: { label: c => `${formatNumber(c.raw, 1)}억$` } }
+            },
+            scales: {
+                x: { ticks: { color: '#64748b', font: { size: 9 } }, grid: { display: false } },
+                y: { ticks: { color: '#64748b', font: { size: 9 }, callback: v => v + '억$' }, grid: { color: '#1e293b' } }
+            }
+        }
+    });
 }
 
 async function loadKrChart(asset, period) {

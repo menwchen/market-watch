@@ -197,6 +197,32 @@ def api_correlation():
     })
 
 
+@app.route("/api/korea")
+def api_korea():
+    """Full Korean economy dashboard data."""
+    macro = {}
+    trade = {}
+    if Config.BOK_API_KEY:
+        try:
+            macro = bok.fetch_macro_snapshot()
+        except Exception:
+            pass
+        try:
+            trade = bok.fetch_trade_summary()
+        except Exception:
+            pass
+
+    # KOSPI and USDKRW prices
+    prices = {}
+    for asset in ["KOSPI", "USDKRW"]:
+        try:
+            prices[asset] = yahoo.fetch_current_price(asset)
+        except Exception:
+            pass
+
+    return jsonify({"macro": macro, "trade": trade, "prices": prices})
+
+
 @app.route("/api/news")
 def api_news():
     query = request.args.get("query", None)
